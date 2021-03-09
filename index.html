@@ -1,0 +1,209 @@
+<html>
+    <head>
+        <title>XLS14d NFT Account Viewer</title>
+<style>
+iframe {
+    border: 1px solid pink;
+    width: fit-content;
+    height: fit-content;
+    display: inline;
+    vertical-align: top;
+};
+</style>
+    </head>
+    <body>
+    <script>
+function
+cti_transaction_index(
+    cti)
+{
+    return (cti >> 32n) & 0xFFFFn;
+}
+
+function
+cti_ledger_index(
+    cti)
+{
+    return (cti & 0xFFFFFFFFn);
+}
+
+function
+cti_ledger_check(
+    cti)
+{
+    return (cti >> 52n) & 0xFn;
+}
+
+function
+cti_transaction_check(
+    cti)
+{
+    return (cti >> 48n) & 0xFn;
+}
+
+function gofetch()
+{
+    document.getElementById('output').innerHTML = 'Locating...';
+    let raddr = document.getElementById('raddr').value;
+
+    ((racc)=>{
+    let params = {
+        method: 'account_lines',
+        params: [{
+            account: raddr
+        }]
+    };
+    try
+    {
+        var oReq = new XMLHttpRequest();
+        oReq.addEventListener("load", (e)=>{
+            if (oReq.readyState != oReq.DONE)
+                return;
+            try
+            {
+                let json = JSON.parse(oReq.responseText);
+                json = json['result'];
+                if (json['status'] != 'success')
+                    throw("not successful");
+                document.getElementById('output').innerHTML = "<b>Account: " + raddr + "</b><br/>" ;
+
+                for (x in json.lines)
+                {
+                    let currency = json.lines[x].currency;
+                    if (currency.length == 40 && currency.slice(0,2) == '02' && json.lines[x].balance != "0")
+                    {
+                        /// this is an xls14 nft
+                        console.log(currency.slice(2,16));
+                        let cti = BigInt('0x' + currency.slice(2, 16));
+                        console.log(cti);
+                        let txn_index = cti_transaction_index(cti);
+                        let ledger_index = cti_ledger_index(cti);
+                        let txn_check = cti_transaction_check(cti);
+                        let ledger_check = cti_ledger_check(cti);
+
+                        ((currency, ledger_index, ledger_check, txn_index, txn_check, balance)=>{
+                            var req = new XMLHttpRequest();
+                            req.addEventListener("load", (e)=>{
+                                if (req.readyState != req.DONE)
+                                    return;
+
+                            try
+                            {
+                                let json = JSON.parse(req.responseText);
+                                json = json['result'];
+                                if (json['status'] != 'success')
+                                    throw("");
+
+                                if (BigInt(parseInt(json['ledger']['ledger_hash'].slice(0,1), 16)) != ledger_check)
+                                {
+                                    document.getElementById('output').innerHTML += currency + " :: invalid cti " + 
+                                        "ledger_check" +
+                                        "<br/>";
+                                    return;
+                                }
+                                let txns = json['ledger']['transactions'];
+                                for (t in txns)
+                                {
+                                    if (txns[t]['metaData']['TransactionIndex'] == txn_index)
+                                    {
+                                        // located!
+                                        if (BigInt(parseInt(txns[t]['hash'].slice(0,1), 16)) != txn_check)
+                                        {
+                                            document.getElementById('output').innerHTML += currency +
+                                            " :: invalid cti " +
+                                             "txn_check" +
+                                            "<br/>";
+                                            return;
+                                        }
+
+                                        let memos = txns[t].Memos;
+                                        if (memos.length >= 1)
+                                        {
+                                            let urihex = memos[0].Memo.MemoData;
+                                            let uri = '';
+                                            for (let i = 0; i < urihex.length; i+=2)
+                                                uri += String.fromCharCode(parseInt(urihex.slice(i,i+2), 16))
+
+                                            // compute nft balance
+                                            
+                                            balance = '' + balance;
+                                            balance = balance.toUpperCase();
+                                            [mantissa, exponent] = balance.split('E');
+                                            exponent = parseInt(exponent);
+                                            while (mantissa.slice(mantissa.length-1, mantissa.length) == '0')
+                                            {
+                                                exponent++;
+                                                mantissa = mantissa.slice(0, mantissa.length-1);
+                                            }
+                                            exponent += 81;
+                                            balance = parseInt(mantissa) * 10**(exponent);
+                                           
+                                            let namehex = currency.slice(16);
+                                            let tname = '';
+                                            for (let i = 0; i < namehex.length; i+=2)
+                                            {   
+                                                let sl = namehex.slice(i,i+2);
+                                                if (sl == '00')
+                                                    break;
+                                                tname += String.fromCharCode(parseInt(sl, 16))
+                                            }
+                                            
+                                            document.getElementById('output').innerHTML +=
+                                                'Currency Code: ' + currency + '<br>Name: <b style="background:blue; color:white; padding:0.1em;">' + tname + "</b> Balance: <b>" + balance + "</b> " +
+                                                'Preview: <iframe sandbox src="' + uri + '"></iframe><br/>';
+                                        }
+                                        return;
+                                    }
+                                }
+                                document.getElementById('output').innerHTML = 'Invalid CTI: Could not locate txn in ledger.';
+                            }
+                            catch(e)
+                            {
+                                document.getElementById('output').innerHTML = 'Invalid CTI (ledger not found)';
+                                return;
+                            }
+
+
+                            });
+                            req.open("POST", "https://xrplcluster.com/", true);
+                            let params = {
+                                method: 'ledger',
+                                params: [
+                                    {
+                                        ledger_index: ledger_index + "",
+                                        transactions: true,
+                                        binary: false,
+                                        expand: true
+                                    }]
+                            };
+                            req.send(JSON.stringify(params));
+                        })(currency, ledger_index, ledger_check, txn_index, txn_check, json.lines[x].balance);
+                    }
+                }
+
+            }
+            catch(e)
+            {
+                console.log(e);
+                document.getElementById('output').innerHTML = 'Invalid account / not found';
+                return;
+            }
+        });
+
+        document.getElementById('output').innerHTML = 'Checking account...';
+        oReq.open("POST", 'https://xrplcluster.com/', true);
+        oReq.setRequestHeader("Content-Type", "application/json");
+        oReq.send(JSON.stringify(params));
+    }
+    catch (e)
+    {
+        document.getElementById('output').innerHTML = "Invalid account, should look like rSomeAccount...";
+    }})(raddr);
+}
+    </script>
+    <h1>Use the box below to view the XLS14 NFTs on an XRPL account</h1>
+        <input type="text" id="raddr" placeholder="rSomeAcount..."/>
+        <button onclick="gofetch()">Fetch</button>
+
+        <br/><br/><blockquote id="output" style="white-space: pre; font-family:monospace; max-width:100vw; overflow-wrap: break-word;"></blockquote>
+    </body></html>
