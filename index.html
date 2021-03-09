@@ -70,6 +70,7 @@ function gofetch()
                 for (x in json.lines)
                 {
                     let currency = json.lines[x].currency;
+                    let issuer = json.lines[x].account;
                     if (currency.length == 40 && currency.slice(0,2) == '02' && json.lines[x].balance != "0")
                     {
                         /// this is an xls14 nft
@@ -81,7 +82,7 @@ function gofetch()
                         let txn_check = cti_transaction_check(cti);
                         let ledger_check = cti_ledger_check(cti);
 
-                        ((currency, ledger_index, ledger_check, txn_index, txn_check, balance)=>{
+                        ((currency, ledger_index, ledger_check, txn_index, txn_check, balance, issuer)=>{
                             var req = new XMLHttpRequest();
                             req.addEventListener("load", (e)=>{
                                 if (req.readyState != req.DONE)
@@ -148,9 +149,11 @@ function gofetch()
                                                 tname += String.fromCharCode(parseInt(sl, 16))
                                             }
                                             
+
                                             document.getElementById('output').innerHTML +=
-                                                'Currency Code: ' + currency + '<br>Name: <b style="background:blue; color:white; padding:0.1em;">' + tname + "</b> Balance: <b>" + balance + "</b> " +
-                                                'Preview: <iframe sandbox src="' + uri + '"></iframe><br/>';
+                                                'Issuer: ' + issuer + '<br/>' + currency + '<br>Name: <b style="background:blue; color:white; padding:0.1em;">' + tname + "</b> Balance: <b>" + balance + "</b>" ;
+                                            document.getElementById('output').innerHTML += 
+                                            '<div style="display:inline-block; transform: translate(10em, -3em);"><iframe sandbox src="' + uri + '"></iframe></div>';
                                         }
                                         return;
                                     }
@@ -177,7 +180,7 @@ function gofetch()
                                     }]
                             };
                             req.send(JSON.stringify(params));
-                        })(currency, ledger_index, ledger_check, txn_index, txn_check, json.lines[x].balance);
+                        })(currency, ledger_index, ledger_check, txn_index, txn_check, json.lines[x].balance, issuer);
                     }
                 }
 
