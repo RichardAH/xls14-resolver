@@ -139,6 +139,9 @@ function gofetch()
                                             exponent += 81;
                                             balance = parseInt(mantissa) * 10**(exponent);
                                            
+                                            if (balance < 0)
+                                                return;
+
                                             let namehex = currency.slice(16);
                                             let tname = '';
                                             for (let i = 0; i < namehex.length; i+=2)
