@@ -209,10 +209,22 @@ function gofetch()
         document.getElementById('output').innerHTML = "Invalid account, should look like rSomeAccount...";
     }})(raddr);
 }
+
     </script>
     <h1>Use the box below to view the XLS14 NFTs on an XRPL account</h1>
         <input type="text" id="raddr" placeholder="rSomeAcount..."/>
         <button onclick="gofetch()">Fetch</button>
 
         <br/><br/><blockquote id="output" style="white-space: pre; font-family:monospace; max-width:100vw; overflow-wrap: break-word;"></blockquote>
+
+        <script defer>
+const urlParams = new URLSearchParams(window.location.search);
+const addr_param = urlParams.get('addr');
+if (addr_param)
+{
+    document.getElementById('raddr').value = addr_param;
+    gofetch();
+}
+
+        </script>
     </body></html>
