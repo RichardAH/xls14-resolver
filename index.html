@@ -153,6 +153,9 @@ function gofetch()
                                             }
                                             
 
+                                            if (uri.slice(0,7) == 'ipfs://')
+                                                uri = 'https://ipfs.io/ipfs/' + uri.slice(7);
+
                                             document.getElementById('output').innerHTML +=
                                                 'Issuer: ' + issuer + '<br/>' + currency + '<br>Name: <b style="background:blue; color:white; padding:0.1em;">' + tname + "</b> Balance: <b>" + balance + "</b>" ;
                                             document.getElementById('output').innerHTML += 
